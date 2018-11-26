@@ -3,6 +3,7 @@
 
 #include <queue>
 #include <mutex>
+#include <cassert>
 
 template <class T>
 class SynchronousQueue {
@@ -12,13 +13,16 @@ private:
 	std::condition_variable consumed_;
 	std::condition_variable produced_;
 	size_t max_size_;
+
 public:
 	SynchronousQueue(size_t max_size):max_size_(max_size) {}
+
 	void produce(T val) {
 		{
 			std::unique_lock<std::mutex> lock(mx_);
 			std::cout << val << " process came to ADD\n";
 			produced_.wait(lock, [&]() { return queue_.size() != max_size_; } );
+			assert(queue_size() < max_size_);
 			//std::cout << val << " I'll ADD\n";
 			queue_.push(val);
 			std::cout << val << " was ADDED to the queue, there are " << queue_.size() << " elements in total\n";
@@ -31,7 +35,7 @@ public:
 		{
 			std::unique_lock<std::mutex> lock(mx_);
 			std::cout << id << " process came to ERASE\n";
-			consumed_.wait(lock, [&]() {return queue_.size() != 0; });
+			consumed_.wait(lock, [&]() {return !queue_.empty(); });
 			//std::cout << id << " I'll ERASE\n";
 			val = queue_.front();
 			queue_.pop();
